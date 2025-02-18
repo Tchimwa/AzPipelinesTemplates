@@ -15,7 +15,8 @@ steps:
       failOnStderr: true
       pwsh: true
       script: |
+        $GIT_USER = "$(GIT_USER)"
         Write-Host "**************** Using OAuth Token ****************"
-        git config --global --unset-all http.https://genre@dev.azure.com/.extraheader 
-        git config --global http.https://genre@dev.azure.com/.extraheader "AUTHORIZATION: bearer $env:TOKEN"
+        git config --global --unset-all http.https://$GIT_USER@dev.azure.com/.extraheader 
+        git config --global http.https://$GIT_USER@dev.azure.com/.extraheader "AUTHORIZATION: bearer $env:TOKEN"
         git config --global --get-regexp .*extraheader
