@@ -6,13 +6,14 @@ steps:
       failOnStderr: true
       pwsh: true
       script: |
+        $GIT_USER = $(GIT_USER)
         try {
           # Attempting to reset the GIT Permissions
           Write-Host "**************** Resetting GIT Permissions ****************"
           $header = git config --global --get-regexp .*extraheader 2>&1
           if ($header) {
             Write-Host "***** Removing extraheader from GIT Config *****" 
-            git config --global --unset-all http.https://genre@dev.azure.com/.extraheader 
+            git config --global --unset-all http.https://$GIT_USER@dev.azure.com/.extraheader 
           } 
           else { 
             Write-Host "***** NO EXTRAHEADER FOUND *****" 
