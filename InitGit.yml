@@ -1,0 +1,21 @@
+parameters:
+  - name: token
+    type: string
+  - name: token_type
+    default: OAuth
+steps:
+  - checkout: self
+  - task: PowerShell@2
+    displayName: GIT Permissions Initialization
+    env:
+      TOKEN: ${{ parameters.token }}
+      TOKEN_TYPE: ${{ parameters.token_type }}
+    inputs:
+      targetType: inline
+      failOnStderr: true
+      pwsh: true
+      script: |
+        Write-Host "**************** Using OAuth Token ****************"
+        git config --global --unset-all http.https://genre@dev.azure.com/.extraheader 
+        git config --global http.https://genre@dev.azure.com/.extraheader "AUTHORIZATION: bearer $env:TOKEN"
+        git config --global --get-regexp .*extraheader

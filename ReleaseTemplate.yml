@@ -1,0 +1,113 @@
+parameters:
+  # GIT
+  - name: token
+    type: string
+    default: $(System.Token)
+  - name: token_type
+    default: "OAuth"
+  - name: pipeline_approvers
+  - name: pipeline_principal_approver
+  # Terraform
+  - name: environment_code
+  - name: config_folder
+  - name: backend_config_path
+  - name: svc_connection_name
+  - name: terraform_version
+    default: "1.10.5"
+
+stages:
+  - stage: Validation_Stage
+    displayName: "Validation Stage"
+    jobs:
+      - job: Terraform_Plan_Operation
+        displayName: "Terraform Plan Operation"
+        workspace:
+          clean: all 
+        steps:
+          - checkout: self
+
+          - template: InitGit.yml
+            parameters: 
+              token: ${{ parameters.token }}
+              token_type: ${{ parameters.token_type }}
+
+          - task: TerraformInstaller@1
+            displayName: "Install Terraform version ${{parameters.terraform_version}}"
+            inputs:
+              terraformVersion: "${{ parameters.terraform_version }}"
+
+          - task: TerraformCLI@1
+            displayName: "Terraform Initialization"
+            inputs:
+              command: "init"
+              workingDirectory: "$(System.DefaultWorkingDirectory)/${{parameters.config_folder}}"
+              backendType: "azurerm"
+              backendServiceArm: "${{parameters.svc_connection_name}}"
+              commandOptions: "-backend-config=${{parameters.backend_config_path}}"
+
+          - template: ResetGit.yml
+
+          - task: TerraformCLI@1
+            displayName: "Terraform Plan" 
+            name: "Terraform_Plan"
+            inputs:
+              command: "plan" 
+              workingDirectory: "$(System.DefaultWorkingDirectory)/${{parameters.config_folder}}"
+              environmentServiceName: "${{parameters.svc_connection_name}}"
+              commandOptions: "--var-file=env/${{parameters.environment_code}}.tfvars -out=$(System.DefaultWorkingDirectory)/${{parameters.config_folder}}/terraform.tfplan"
+              publishPlanResults: "Terraform_Plan"
+
+          - task: PowerShell@2
+            name: "checking_tfplan_changes"
+            displayName: "Check Terraform Plan Changes" 
+            inputs:
+              targetType: "inline"
+              script: |
+                if (Select-String -Pattern "No changes" -Path "$(System.DefaultWorkingDirectory)/${{parameters.config_folder}}/terraform.tfplan") {
+                  echo "##vso[task.setvariable variable=output_tfplan_changes;isOutput=true]false"
+                } else {
+                  echo "##vso[task.setvariable variable=output_tfplan_changes;isOutput=true]true"
+                }
+
+  - stage: Apply_Stage
+    displayName: "Terraform Apply Stage"
+    dependsOn: Validation_Stage
+    condition: eq(dependencies.Validation_Stage.outputs['Terraform_Plan_Operation.checking_tfplan_changes.output_tfplan_changes'], 'true')
+
+    approval:
+      - name: "Manual Approval"
+        displayName: "Approve Terraform Apply"
+        description: "Please review the Terraform Plan before applying changes."
+        timeoutInMinutes: 60  # Timeout for approval
+        reviewers:
+          - group: "${{ parameters.pipeline_approvers}}"  # Replace with your Azure DevOps group
+          - user: "${{ parameters.pipeline_principal_approver}}"  # Replace with an actual user
+
+    jobs:
+      - job: Terraform_Apply_Operation
+        displayName: "Terraform Apply Operation"
+        steps:
+          - checkout: self
+
+          - task: TerraformInstaller@1
+            displayName: "Install Terraform version ${{parameters.terraform_version}}"
+            inputs:
+              terraformVersion: "${{ parameters.terraform_version }}"
+
+          - task: TerraformCLI@1
+            displayName: "Terraform Initialization"
+            inputs:
+              command: "init"
+              workingDirectory: "$(System.DefaultWorkingDirectory)/${{parameters.config_folder}}"
+              backendType: "azurerm"
+              backendServiceArm: "${{parameters.svc_connection_name}}"
+              commandOptions: "-backend-config=${{parameters.backend_config_path}}"
+
+          - task: TerraformCLI@1
+            displayName: "Terraform Apply"
+            inputs:
+              command: "apply"
+              workingDirectory: "$(System.DefaultWorkingDirectory)/${{parameters.config_folder}}"
+              environmentServiceName: "${{parameters.svc_connection_name}}"
+              commandOptions: "-auto-approve $(System.DefaultWorkingDirectory)/${{parameters.config_folder}}/terraform.tfplan"
+              runAzlogin: true

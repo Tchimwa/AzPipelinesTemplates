@@ -1,0 +1,26 @@
+steps:
+  - task: PowerShell@2
+    displayName: Reset GIT Permissions
+    inputs:
+      targetType: inline
+      failOnStderr: true
+      pwsh: true
+      script: |
+        try {
+          # Attempting to reset the GIT Permissions
+          Write-Host "**************** Resetting GIT Permissions ****************"
+          $header = git config --global --get-regexp .*extraheader 2>&1
+          if ($header) {
+            Write-Host "***** Removing extraheader from GIT Config *****" 
+            git config --global --unset-all http.https://genre@dev.azure.com/.extraheader 
+          } 
+          else { 
+            Write-Host "***** NO EXTRAHEADER FOUND *****" 
+            $LASTEXITCODE = 0 
+          }
+        } 
+        catch { 
+          Write-Host "Failed to reset GIT Permissions..." 
+          Write-Host "$_" 
+          throw $_ 
+        }

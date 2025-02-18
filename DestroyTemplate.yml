@@ -1,0 +1,59 @@
+parameters:
+# GIT
+- name: token
+  type: string
+  default: ${System.Token}
+- name: token_type
+  default: "OAuth"
+# Terraform
+- name: environment_code
+- name: config_folder
+- name: backend_config_path
+- name: svc_connection_name
+- name: terraform_version
+  default: "1.10.5"
+
+stages:
+  - stage: Validation_Stage
+    displayName: Validation_Stage
+    jobs:
+      - job: Terraform_Destroy_Operation
+        displayName: "Terraform_Destroy_Operation"
+        timeoutInMinutes: 0
+        environment: ${{parameters.environment_code}}
+        workspace:
+          clean: all 
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - download: none
+                - checkout: self
+                - template: InitGit.yml
+                  parameters: 
+                    token: ${{ parameters.token }}
+                    token_type: ${{ parameters.token_type }}
+                - task: TerraformInstaller@1
+                  displayName: "Terraform installation version ${{parameters.terraform_version}}"
+                  inputs:
+                    terraformVersion: "${{ parameters.terraform_version }}"
+                - task: TerraformCLI@1
+                  displayName: "Terraform Initialization"
+                  inputs:
+                    command: "init"
+                    workingDirectory: "(System.DefaultWorkingDirectory)/${{parameters.config_folder}}"
+                    backendType: "azurerm"
+                    backendServiceArm: "{{parameters.svc_connection_name}}"
+                    commandOptions: "-backend-config=${{parameters.backend_config_path}}"
+                - template: ResetGit.yml
+                - task: TerraformCLI@1
+                  displayName: "Terraform_Destroy"
+                  name: "Terraform_Destroy"
+                  retryCountOnTaskFailure: 3
+                  inputs:
+                    command: "destroy"
+                    workingDirectory: "(System.DefaultWorkingDirectory)/${{parameters.config_folder}}"
+                    backendType: "azurerm"
+                    backendServiceArm: "{{parameters.svc_connection_name}}"
+                    commandOptions: "--var-file=env/${{parameters.environment_code}}.tfvars"
+                    runAzlogin: true
