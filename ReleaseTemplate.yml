@@ -5,6 +5,8 @@ parameters:
     default: $(System.Token)
   - name: token_type
     default: "OAuth"
+  - name: git_org
+    type: string
   - name: pipeline_approvers
   - name: pipeline_principal_approver
   # Terraform
@@ -30,6 +32,7 @@ stages:
             parameters: 
               token: ${{ parameters.token }}
               token_type: ${{ parameters.token_type }}
+              GIT_ORG: ${{ parameters.git_org }}
 
           - task: TerraformInstaller@1
             displayName: "Install Terraform version ${{parameters.terraform_version}}"
@@ -46,6 +49,8 @@ stages:
               commandOptions: "-backend-config=${{parameters.backend_config_path}}"
 
           - template: ResetGit.yml
+            parameters: 
+              GIT_ORG: ${{ parameters.git_org }}
 
           - task: TerraformCLI@1
             displayName: "Terraform Plan" 
