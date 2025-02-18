@@ -3,20 +3,34 @@ parameters:
     type: string
   - name: token_type
     default: OAuth
+  - name: git_org  # Azure DevOps organization
+    type: string
+
 steps:
   - checkout: self
+
   - task: PowerShell@2
-    displayName: GIT Permissions Initialization
+    displayName: "Initialize GIT Permissions"
     env:
       TOKEN: ${{ parameters.token }}
       TOKEN_TYPE: ${{ parameters.token_type }}
+      GIT_ORG: ${{ parameters.git_org }}  # Pass the organization as an environment variable
     inputs:
       targetType: inline
       failOnStderr: true
       pwsh: true
       script: |
-        $GIT_USER = "$(GIT_USER)"
-        Write-Host "**************** Using OAuth Token ****************"
-        git config --global --unset-all http.https://$GIT_USER@dev.azure.com/.extraheader 
-        git config --global http.https://$GIT_USER@dev.azure.com/.extraheader "AUTHORIZATION: bearer $env:TOKEN"
+        Write-Host "**************** Configuring Git Authentication for '$env:GIT_ORG' ****************"
+
+        # Unset any existing extra headers
+        Write-Host "Removing existing extra headers..."
+        git config --global --unset-all http.https://dev.azure.com/.extraheader 2>$null
+        git config --global --unset-all http.https://$env:GIT_ORG@dev.azure.com/.extraheader 2>$null
+
+        # Set new authentication header
+        Write-Host "Setting new authentication header for organization '$env:GIT_ORG'..."
+        git config --global http.https://$env:GIT_ORG@dev.azure.com/.extraheader "AUTHORIZATION: bearer $env:TOKEN"
+
+        # Verify the configuration
+        Write-Host "Verifying Git configuration..."
         git config --global --get-regexp .*extraheader
