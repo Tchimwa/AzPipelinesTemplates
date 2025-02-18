@@ -85,8 +85,8 @@ stages:
         description: "Please review the Terraform Plan before applying changes."
         timeoutInMinutes: 60  # Timeout for approval
         reviewers:
-          - group: "${{ parameters.pipeline_approvers}}"  # Replace with your Azure DevOps group
-          - user: "${{ parameters.pipeline_principal_approver}}"  # Replace with an actual user
+          - group: "${{parameters.pipeline_approvers}}"  # Replace with your Azure DevOps group
+          - user: "${{parameters.pipeline_principal_approver}}"  # Replace with an actual user
 
     jobs:
       - job: Terraform_Apply_Operation
