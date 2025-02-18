@@ -1,22 +1,30 @@
+parameters:
+  - name: git_org  # Parameter for the Azure DevOps organization
+    type: string
+
 steps:
   - task: PowerShell@2
-    displayName: Reset GIT Permissions
+    displayName: "Reset GIT Permissions"
+    env:
+      GIT_ORG: ${{ parameters.git_org }}  # Pass the organization name as an environment variable
     inputs:
       targetType: inline
       failOnStderr: true
       pwsh: true
       script: |
-        $GIT_USER = $(GIT_USER)
         try {
           # Attempting to reset the GIT Permissions
-          Write-Host "**************** Resetting GIT Permissions ****************"
+          Write-Host "**************** Resetting GIT Permissions for '$env:GIT_ORG' ****************"
+          
           $header = git config --global --get-regexp .*extraheader 2>&1
+          
           if ($header) {
-            Write-Host "***** Removing extraheader from GIT Config *****" 
-            git config --global --unset-all http.https://$GIT_USER@dev.azure.com/.extraheader 
+            Write-Host "***** Removing extraheader from GIT Config *****"
+            git config --global --unset-all http.https://$env:GIT_ORG@dev.azure.com/.extraheader
+            Write-Host "***** Successfully removed extraheader *****"
           } 
           else { 
-            Write-Host "***** NO EXTRAHEADER FOUND *****" 
+            Write-Host "***** NO EXTRAHEADER FOUND *****"
             $LASTEXITCODE = 0 
           }
         } 
